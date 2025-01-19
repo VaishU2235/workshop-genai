@@ -6,7 +6,6 @@ from ..models.submission import SubmissionStatus
 class SubmissionCreate(BaseModel):
     prompt: str
     response: str
-    match_round: int = Field(..., ge=0)
     table_metadata: Dict[str, Any] = Field(default_factory=dict)
 
 class SubmissionUpdate(BaseModel):

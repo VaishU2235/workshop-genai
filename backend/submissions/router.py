@@ -15,6 +15,7 @@ from .schemas import (
     AdminSubmissionDetail
 )
 from .dependencies import verify_submission_status
+from ..admin.routes import CURRENT_ROUND
 
 router = APIRouter()
 
@@ -30,7 +31,7 @@ async def create_submission(
             team_id=team_id,
             prompt=submission.prompt,
             response=submission.response,
-            match_round=submission.match_round,
+            match_round=CURRENT_ROUND,
             status='pending',
             table_metadata=submission.table_metadata
         )
