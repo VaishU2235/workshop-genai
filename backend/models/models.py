@@ -15,17 +15,6 @@ class Team(Base):
     created_at = Column(DateTime, server_default=func.now())
     table_metadata = Column(JSON)
 
-class Submission(Base):
-    __tablename__ = 'submissions'
-    
-    submission_id = Column(Integer, primary_key=True)
-    team_id = Column(String(20), ForeignKey('teams.team_id'))
-    prompt = Column(Text, nullable=False)
-    response = Column(Text, nullable=False)
-    submitted_at = Column(DateTime, server_default=func.now())
-    status = Column(String(20))
-    table_metadata = Column(JSON)
-
 class Leaderboard(Base):
     __tablename__ = 'leaderboard'
     
