@@ -3,9 +3,9 @@ from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from sqlalchemy.orm import Session
 
-from .database import get_db
-from .auth.utils import SECRET_KEY, ALGORITHM
-from .models import Team
+from ..database import get_db
+from .utils import SECRET_KEY, ALGORITHM
+from ..models.team import Team
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/teams/login")
 
@@ -31,4 +31,16 @@ async def get_current_team(
     if team is None:
         raise credentials_exception
         
-    return team 
+    return team
+
+async def get_current_team_id(
+    team: Team = Depends(get_current_team)
+) -> str:
+    return team.team_id
+
+async def require_admin(
+    team: Team = Depends(get_current_team)
+) -> bool:
+    # TODO: Implement proper admin check
+    # For now, just return True if authenticated
+    return True 

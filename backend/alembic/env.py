@@ -12,7 +12,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import your models
 from models import Base  # This will work now
-from models.models import Team, Submission, Leaderboard, Comparison
+from models.team import Team
+from models.submission import Submission
+from models.leaderboard import Leaderboard
+from models.comparison import Comparison
 
 # this is the Alembic Config object
 config = context.config
