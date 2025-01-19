@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from typing import Optional, List
+from fastapi import status
 
 from ..database import get_db
 from ..models.submission import Submission
@@ -16,6 +17,7 @@ from .schemas import (
 )
 from .dependencies import verify_submission_status
 from ..admin.routes import CURRENT_ROUND
+from ..utils.match_generation import generate_matches_for_team
 
 router = APIRouter()
 
@@ -83,48 +85,64 @@ async def get_my_submissions(
 @router.put("/api/submissions/{submission_id}/verify", response_model=SubmissionResponse)
 async def verify_submission(
     submission_id: int,
-    update: SubmissionUpdate,
+    submission_update: SubmissionUpdate,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     team_id: int = Depends(get_current_team_id)
 ):
     """Verify or reject a submission"""
-    verify_submission_status(update.status)
+    verify_submission_status(submission_update.status)
+    
+    submission = db.query(Submission)\
+        .filter(
+            Submission.submission_id == submission_id,
+            Submission.team_id == team_id
+        ).first()
+        
+    if not submission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submission not found or access denied"
+        )
+    
+    # Check if this is the first verified submission for this team in this round
+    is_first_verified = False
+    if (submission_update.status == 'verified' and 
+        submission.status != 'verified'):
+        existing_verified = db.query(Submission)\
+            .filter(
+                Submission.team_id == submission.team_id,
+                Submission.match_round == submission.match_round,
+                Submission.status == 'verified'
+            ).first()
+        is_first_verified = not existing_verified
+    
+    # Update submission
+    submission.status = submission_update.status
+    if submission_update.table_metadata is not None:
+        submission.table_metadata = submission_update.table_metadata
     
     try:
-        submission = db.query(Submission)\
-            .filter(
-                Submission.submission_id == submission_id,
-                Submission.team_id == team_id
-            ).first()
-            
-        if not submission:
-            raise HTTPException(
-                status_code=404,
-                detail={
-                    'error': 'Submission not found or access denied',
-                    'code': 'NOT_FOUND'
-                }
-            )
-            
-        submission.status = update.status
-        if update.table_metadata is not None:
-            submission.table_metadata = update.table_metadata
         db.commit()
+        
+        # If this is team's first verified submission, generate matches
+        if is_first_verified:
+            background_tasks.add_task(
+                generate_matches_for_team,
+                db,
+                submission.team_id
+            )
         
         return {
             'submission_id': submission.submission_id,
             'status': submission.status
         }
         
-    except SQLAlchemyError as e:
+    except Exception as e:
         db.rollback()
         raise HTTPException(
-            status_code=500,
-            detail={
-                'error': 'Database error',
-                'code': 'DB_ERROR',
-                'details': str(e)
-            }
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
         )
 
 @router.get("/api/admin/submissions", response_model=List[AdminSubmissionDetail])
