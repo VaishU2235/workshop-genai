@@ -1,11 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from datetime import datetime
+import logging
 from .. import models
 from . import schemas
 from ..auth.dependencies import get_current_team_id
 from ..database import get_db
+from ..utils.calculate_score import calculate_elo_change
 
 router = APIRouter()
 
@@ -56,10 +58,65 @@ async def get_next_match(
         "team2_name": team2.team_name
     }
 
+async def update_team_ratings(db: Session, winner_team_id: int, loser_team_id: int):
+    """Update team ratings in the leaderboard after a match"""
+    try:
+        # Fetch current ratings
+        winner_record = db.query(models.Leaderboard).filter(
+            models.Leaderboard.team_id == winner_team_id
+        ).first()
+        loser_record = db.query(models.Leaderboard).filter(
+            models.Leaderboard.team_id == loser_team_id
+        ).first()
+        
+        if not winner_record or not loser_record:
+            logging.error(f"Leaderboard records not found for teams {winner_team_id}, {loser_team_id}")
+            return False
+            
+        # Calculate new ratings
+        new_winner_rating, new_loser_rating = calculate_elo_change(
+            team1_rating=winner_record.elo_rating,
+            team2_rating=loser_record.elo_rating,
+            result=1.0  # Winner is always team1 in this case
+        )
+        
+        # Update ratings
+        winner_record.elo_rating = new_winner_rating
+        loser_record.elo_rating = new_loser_rating
+        
+        db.commit()
+        
+        logging.info(
+            f"Updated ratings - Winner Team {winner_team_id}: {new_winner_rating}, "
+            f"Loser Team {loser_team_id}: {new_loser_rating}"
+        )
+        return True
+        
+    except Exception as e:
+        db.rollback()
+        logging.error(f"Error updating ratings: {str(e)}")
+        return False
+
+def process_ratings_background(db: Session, winner_team_id: int, loser_team_id: int):
+    """Background task to process ratings with one retry"""
+    success = False
+    
+    # First attempt
+    success = update_team_ratings(db, winner_team_id, loser_team_id)
+    
+    # Retry once if failed
+    if not success:
+        logging.info("Retrying rating update...")
+        success = update_team_ratings(db, winner_team_id, loser_team_id)
+        
+    if not success:
+        logging.error("Failed to update ratings after retry")
+
 @router.post("/comparisons/{comparison_id}/submit")
 async def submit_comparison(
     comparison_id: int,
     submission: schemas.ComparisonSubmit,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     team_id: models.Team = Depends(get_current_team_id)
 ):
@@ -115,7 +172,17 @@ async def submit_comparison(
     
     try:
         db.commit()
+        
+        # Add rating update to background tasks
+        background_tasks.add_task(
+            process_ratings_background,
+            db,
+            submission.winner_team_id,
+            submission.loser_team_id
+        )
+        
         return {"status": "success"}
+        
     except Exception as e:
         db.rollback()
         raise HTTPException(
