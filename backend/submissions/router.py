@@ -30,8 +30,9 @@ async def create_submission(
             team_id=team_id,
             prompt=submission.prompt,
             response=submission.response,
+            match_round=submission.match_round,
             status='pending',
-            table_metadata={}
+            table_metadata=submission.table_metadata
         )
         
         db.add(new_submission)
@@ -105,6 +106,8 @@ async def verify_submission(
             )
             
         submission.status = update.status
+        if update.table_metadata is not None:
+            submission.table_metadata = update.table_metadata
         db.commit()
         
         return {
@@ -150,6 +153,8 @@ async def list_submissions(
             'prompt': sub.prompt,
             'response': sub.response,
             'status': sub.status,
+            'match_round': sub.match_round,
+            'table_metadata': sub.table_metadata,
             'submitted_at': sub.submitted_at
         } for sub, team in results]
         
