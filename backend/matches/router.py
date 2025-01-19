@@ -4,7 +4,7 @@ from sqlalchemy import func
 from datetime import datetime
 from .. import models
 from . import schemas
-from ..auth.dependencies import get_current_user
+from ..auth.dependencies import get_current_team_id
 from ..database import get_db
 
 router = APIRouter()
@@ -12,7 +12,7 @@ router = APIRouter()
 @router.get("/matches/next", response_model=schemas.MatchResponse)
 async def get_next_match(
     db: Session = Depends(get_db),
-    current_user: models.Team = Depends(get_current_user)
+    team_id: models.Team = Depends(get_current_team_id)
 ):
     """Get next random match for review"""
     # Get random pending comparison where current user is not involved
@@ -20,7 +20,7 @@ async def get_next_match(
         .join(models.Submission, models.Comparison.submission_1_id == models.Submission.submission_id)\
         .filter(
             models.Comparison.comparison_status == 'pending',
-            models.Submission.team_id != current_user.team_id,
+            models.Submission.team_id != team_id,
             models.Comparison.reviewer_id.is_(None)
         )\
         .order_by(func.random())\
@@ -61,7 +61,7 @@ async def submit_comparison(
     comparison_id: int,
     submission: schemas.ComparisonSubmit,
     db: Session = Depends(get_db),
-    current_user: models.Team = Depends(get_current_user)
+    team_id: models.Team = Depends(get_current_team_id)
 ):
     """Submit comparison results"""
     comparison = db.query(models.Comparison).get(comparison_id)
@@ -90,7 +90,7 @@ async def submit_comparison(
     comparison.winner_submission_id = submission.winner_submission_id
     comparison.loser_submission_id = submission.loser_submission_id
     comparison.score_difference = submission.score_difference
-    comparison.reviewer_id = current_user.team_id
+    comparison.reviewer_id = team_id
     comparison.comparison_status = 'completed'
     comparison.completed_at = datetime.utcnow()
     

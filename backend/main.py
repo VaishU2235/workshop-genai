@@ -4,9 +4,12 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .auth.router import router as auth_router
 from .submissions.router import router as submissions_router
-from .admin.routes import router as admin_router  # adjust import path as needed
+from .matches.router import router as matches_router
+from .admin.routes import router as admin_router
 from .database import engine
 from .models.base import Base
+
+
 
 # Create database tables
 Base.metadata.create_all(bind=engine)
@@ -26,6 +29,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(submissions_router)
 app.include_router(admin_router)
+app.include_router(matches_router)
 
 @app.get("/")
 async def root():
