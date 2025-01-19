@@ -8,6 +8,7 @@ from . import schemas
 from ..auth.dependencies import get_current_team_id
 from ..database import get_db
 from ..utils.calculate_score import calculate_elo_change
+from ..admin.routes import CURRENT_ROUND
 
 router = APIRouter()
 
@@ -17,33 +18,71 @@ async def get_next_match(
     team_id: models.Team = Depends(get_current_team_id)
 ):
     """Get next random match for review"""
-    # Get random pending comparison where current user is not involved
-    pending_comparison = db.query(models.Comparison)\
-        .join(models.Submission, models.Comparison.submission_1_id == models.Submission.submission_id)\
+    # Get random match where current user is not involved
+    random_match = db.query(models.Match)\
         .filter(
-            models.Comparison.comparison_status == 'pending',
-            models.Submission.team_id != team_id,
-            models.Comparison.reviewer_id.is_(None)
+            models.Match.team1_id != team_id,
+            models.Match.team2_id != team_id,
+            models.Match.match_round == CURRENT_ROUND
         )\
         .order_by(func.random())\
         .first()
     
-    if not pending_comparison:
+    if not random_match:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="No pending matches available"
+            detail="No matches available"
         )
+
+    # Get latest verified submissions for both teams
+    submission1 = db.query(models.Submission)\
+        .filter(
+            models.Submission.team_id == random_match.team1_id,
+            models.Submission.status == 'verified',
+            models.Submission.match_round == CURRENT_ROUND
+        )\
+        .order_by(models.Submission.submitted_at.desc())\
+        .first()
+        
+    submission2 = db.query(models.Submission)\
+        .filter(
+            models.Submission.team_id == random_match.team2_id,
+            models.Submission.status == 'verified',
+            models.Submission.match_round == CURRENT_ROUND
+        )\
+        .order_by(models.Submission.submitted_at.desc())\
+        .first()
+
+    if not submission1 or not submission2:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Verified submissions not found for both teams"
+        )
+
+    # Create new comparison
+    comparison = models.Comparison(
+        submission_1_id=submission1.submission_id,
+        submission_2_id=submission2.submission_id,
+        match_round=CURRENT_ROUND,
+        comparison_status='pending'
+    )
+    db.add(comparison)
     
-    # Get submissions details
-    submission1 = db.query(models.Submission).get(pending_comparison.submission_1_id)
-    submission2 = db.query(models.Submission).get(pending_comparison.submission_2_id)
-    
+    try:
+        db.commit()
+    except Exception as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=str(e)
+        )
+
     # Get team names
-    team1 = db.query(models.Team).get(submission1.team_id)
-    team2 = db.query(models.Team).get(submission2.team_id)
+    team1 = db.query(models.Team).get(random_match.team1_id)
+    team2 = db.query(models.Team).get(random_match.team2_id)
     
     return {
-        "comparison_id": pending_comparison.comparison_id,
+        "comparison_id": comparison.comparison_id,
         "submission1": {
             "submission_id": submission1.submission_id,
             "prompt": submission1.prompt,
