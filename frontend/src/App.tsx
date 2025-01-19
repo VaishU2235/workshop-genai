@@ -3,6 +3,7 @@ import { UserAuth } from './components/UserAuth'
 import { LogoutButton } from './components/LogoutButton'
 import { Toaster } from '@/components/ui/toaster'
 import './App.css'
+import Dashboard from './components/Dashboard'
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false)
@@ -34,8 +35,8 @@ function App() {
         </header>
 
         {/* Main Content */}
-        <main className="container mx-auto p-4">
-          <h1>Welcome to the App</h1>
+        <main>
+          <Dashboard />
         </main>
       </div>
       <Toaster />
