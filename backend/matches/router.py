@@ -86,9 +86,28 @@ async def submit_comparison(
             detail="Invalid submission IDs"
         )
     
+    # Validate team IDs match the submissions
+    winner_submission = db.query(models.Submission).get(submission.winner_submission_id)
+    loser_submission = db.query(models.Submission).get(submission.loser_submission_id)
+    
+    if not winner_submission or not loser_submission:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid submission IDs"
+        )
+    
+    if (winner_submission.team_id != submission.winner_team_id or 
+        loser_submission.team_id != submission.loser_team_id):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Team IDs don't match the submissions"
+        )
+    
     # Update comparison
     comparison.winner_submission_id = submission.winner_submission_id
     comparison.loser_submission_id = submission.loser_submission_id
+    comparison.winner_team_id = submission.winner_team_id
+    comparison.loser_team_id = submission.loser_team_id
     comparison.score_difference = submission.score_difference
     comparison.reviewer_id = team_id
     comparison.comparison_status = 'completed'

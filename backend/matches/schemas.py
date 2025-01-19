@@ -8,6 +8,8 @@ class MatchCreate(BaseModel):
 class ComparisonSubmit(BaseModel):
     winner_submission_id: int
     loser_submission_id: int
+    winner_team_id: str
+    loser_team_id: str
     score_difference: int
 
 class MatchResponse(BaseModel):

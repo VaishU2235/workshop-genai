@@ -30,6 +30,8 @@ class Comparison(Base):
         ForeignKey('submissions.submission_id'),
         nullable=True
     )
+    winner_team_id = Column(String(20), ForeignKey('teams.team_id'), nullable=True)
+    loser_team_id = Column(String(20), ForeignKey('teams.team_id'), nullable=True)
     reviewer_id = Column(String(20), ForeignKey('teams.team_id'), nullable=True)
     reviewer_weightage = Column(Float, nullable=True)
     score_difference = Column(Integer, nullable=True)
@@ -42,7 +44,7 @@ class Comparison(Base):
     created_at = Column(DateTime, server_default=func.now(), nullable=False)
     completed_at = Column(DateTime, nullable=True)
 
-    # Add constraints as table arguments
+    # Update constraints
     __table_args__ = (
         CheckConstraint("comparison_status IN ('pending', 'completed', 'disputed')", name='valid_status'),
         CheckConstraint('submission_1_id != submission_2_id', name='different_submissions'),
@@ -50,14 +52,15 @@ class Comparison(Base):
         CheckConstraint(
             """
             (comparison_status = 'pending' AND winner_submission_id IS NULL 
-             AND loser_submission_id IS NULL AND score_difference IS NULL)
+             AND loser_submission_id IS NULL AND winner_team_id IS NULL
+             AND loser_team_id IS NULL AND score_difference IS NULL)
             OR 
             (comparison_status IN ('completed', 'disputed') AND winner_submission_id IS NOT NULL 
-             AND loser_submission_id IS NOT NULL AND score_difference IS NOT NULL)
+             AND loser_submission_id IS NOT NULL AND winner_team_id IS NOT NULL
+             AND loser_team_id IS NOT NULL AND score_difference IS NOT NULL)
             """,
             name='status_dependent_nullability'
         ),
-        # Ensure reviewer_weightage is between 0 and 1
         CheckConstraint(
             '(reviewer_weightage IS NULL) OR (reviewer_weightage >= 0 AND reviewer_weightage <= 1)',
             name='valid_reviewer_weightage'
@@ -77,6 +80,8 @@ class ComparisonCreate(ComparisonBase):
 class ComparisonUpdate(BaseModel):
     winner_submission_id: int
     loser_submission_id: int
+    winner_team_id: str
+    loser_team_id: str
     score_difference: int
     comparison_status: ComparisonStatus = ComparisonStatus.COMPLETED
     reviewer_weightage: Optional[float] = Field(None, ge=0, le=1)
@@ -85,6 +90,8 @@ class ComparisonRead(ComparisonBase):
     comparison_id: int
     winner_submission_id: Optional[int] = None
     loser_submission_id: Optional[int] = None
+    winner_team_id: Optional[str] = None
+    loser_team_id: Optional[str] = None
     reviewer_id: Optional[str] = None
     reviewer_weightage: Optional[float] = None
     score_difference: Optional[int] = None
