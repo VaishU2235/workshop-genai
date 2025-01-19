@@ -1,5 +1,5 @@
 # models/match.py
-from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, CheckConstraint, UniqueConstraint
 from sqlalchemy.sql import func
 from .base import Base
 
@@ -15,4 +15,5 @@ class Match(Base):
     __table_args__ = (
         CheckConstraint('team1_id != team2_id', name='different_teams'),
         CheckConstraint('match_round >= 0', name='valid_match_round'),
+        UniqueConstraint('team1_id', 'team2_id', 'match_round', name='unique_match_combination')
     )
