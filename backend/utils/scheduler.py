@@ -28,7 +28,17 @@ class TaskScheduler:
         task_id: str = None,
         **kwargs: Any
     ):
+        """Schedule a task to run at fixed intervals."""
         try:
+            # Validate that at least one time parameter is provided
+            if all(param is None for param in [seconds, minutes, hours]):
+                raise ValueError("At least one interval parameter (seconds, minutes, or hours) must be specified")
+            
+            # Convert None values to 0 for the IntervalTrigger
+            seconds = seconds or 0
+            minutes = minutes or 0
+            hours = hours or 0
+            
             job_id = task_id or f"{task.__name__}_{datetime.utcnow().timestamp()}"
             self.scheduler.add_job(
                 task,
