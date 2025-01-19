@@ -16,6 +16,7 @@ from models.team import Team
 from models.submission import Submission
 from models.leaderboard import Leaderboard
 from models.comparison import Comparison
+from models.matches import Match
 
 # this is the Alembic Config object
 config = context.config

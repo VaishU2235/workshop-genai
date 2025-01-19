@@ -23,5 +23,5 @@ class SubmissionDetail(BaseModel):
         from_attributes = True
 
 class AdminSubmissionDetail(SubmissionDetail):
-    team_id: int
+    team_id: str
     team_name: str 
