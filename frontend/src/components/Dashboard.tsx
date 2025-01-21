@@ -3,43 +3,79 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api';
-import type { SubmissionDetail, MatchResponse, LeaderboardEntry } from '@/lib/api';
+import type { SubmissionDetail, MatchResponse, LeaderboardEntry, SubmissionResponse } from '@/lib/api';
 
 // Submissions Table Component
 const SubmissionsTable = () => {
   const [submissions, setSubmissions] = useState<SubmissionDetail[]>([]);
   const [loading, setLoading] = useState(true);
   const [verifying, setVerifying] = useState<number | null>(null);
+  const [unverifying, setUnverifying] = useState<number | null>(null);
+  const [latestVerified, setLatestVerified] = useState<SubmissionResponse | null>(null);
 
   useEffect(() => {
-    const fetchSubmissions = async () => {
+    const fetchData = async () => {
       try {
-        const data = await apiClient.getMySubmissions();
-        setSubmissions(data);
+        const [submissionsData, latestVerifiedData] = await Promise.all([
+          apiClient.getMySubmissions(),
+          apiClient.getLatestVerifiedSubmission()
+        ]);
+        setSubmissions(submissionsData);
+        setLatestVerified(latestVerifiedData);
       } catch (error) {
-        console.error('Failed to fetch submissions:', error);
+        console.error('Failed to fetch data:', error);
       } finally {
         setLoading(false);
       }
     };
 
-    fetchSubmissions();
+    fetchData();
   }, []);
+
+  // Add this to update latest verified when verifying/unverifying
+  const updateLatestVerified = async () => {
+    try {
+      const latest = await apiClient.getLatestVerifiedSubmission();
+      setLatestVerified(latest);
+    } catch (error) {
+      console.error('Failed to fetch latest verified submission:', error);
+    }
+  };
 
   const handleVerify = async (submissionId: number) => {
     setVerifying(submissionId);
     try {
       await apiClient.verifySubmission(submissionId, 'verified');
-      // Update the submission status in the local state
       setSubmissions(submissions.map(sub => 
         sub.submission_id === submissionId 
           ? { ...sub, status: 'verified' } 
           : sub
       ));
+      await updateLatestVerified();
     } catch (error) {
       console.error('Failed to verify submission:', error);
     } finally {
       setVerifying(null);
+    }
+  };
+
+  const handleUnverify = async (submissionId: number) => {
+    setUnverifying(submissionId);
+    try {
+      await apiClient.unverifySubmission(submissionId);
+      setSubmissions(submissions.map(sub => 
+        sub.submission_id === submissionId 
+          ? { ...sub, status: 'pending' } 
+          : sub
+      ));
+      await updateLatestVerified();
+    } catch (error: any) {
+      console.error('Failed to unverify submission:', error);
+      if (error.status === 400) {
+        alert(error.message);
+      }
+    } finally {
+      setUnverifying(null);
     }
   };
 
@@ -51,6 +87,21 @@ const SubmissionsTable = () => {
     <Card className="w-full">
       <CardHeader>
         <CardTitle>My Submissions</CardTitle>
+        <div className={`mt-2 p-4 rounded-lg ${
+          latestVerified 
+            ? 'bg-green-50 text-green-700 border border-green-200' 
+            : 'bg-yellow-50 text-yellow-700 border border-yellow-200'
+        }`}>
+          {latestVerified ? (
+            <p>
+              Your latest verified submission participating in matches is: #{latestVerified.submission_id}
+            </p>
+          ) : (
+            <p>
+              Warning: You don't have any verified submissions. Start by submitting and verifying a submission to enter the matches.
+            </p>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <div className="space-y-6">
@@ -68,7 +119,16 @@ const SubmissionsTable = () => {
                   }`}>
                     {submission.status}
                   </span>
-                  {submission.status !== 'verified' && (
+                  {submission.status === 'verified' ? (
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => handleUnverify(submission.submission_id)}
+                      disabled={unverifying === submission.submission_id}
+                    >
+                      {unverifying === submission.submission_id ? 'Unverifying...' : 'Unverify'}
+                    </Button>
+                  ) : (
                     <Button 
                       variant="outline" 
                       size="sm"

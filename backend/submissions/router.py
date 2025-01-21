@@ -145,6 +145,70 @@ async def verify_submission(
             detail=str(e)
         )
 
+@router.post("/api/submissions/{submission_id}/unverify", response_model=SubmissionResponse)
+async def unverify_submission(
+    submission_id: int,
+    db: Session = Depends(get_db),
+    team_id: int = Depends(get_current_team_id)
+):
+    """Unverify a submission if it's not the only verified submission for the round"""
+    
+    # Get the submission and verify ownership
+    submission = db.query(Submission)\
+        .filter(
+            Submission.submission_id == submission_id,
+            Submission.team_id == team_id
+        ).first()
+        
+    if not submission:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Submission not found or access denied"
+        )
+    
+    # Check if the submission is currently verified
+    if submission.status != 'verified':
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only verified submissions can be unverified"
+        )
+    
+    # Count verified submissions for this team in this round
+    verified_count = db.query(Submission)\
+        .filter(
+            Submission.team_id == team_id,
+            Submission.match_round == submission.match_round,
+            Submission.status == 'verified'
+        ).count()
+    
+    # Check if this is the only verified submission
+    if verified_count <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot unverify the only verified submission for this round"
+        )
+    
+    try:
+        # Update submission status to pending
+        submission.status = 'pending'
+        db.commit()
+        
+        return {
+            'submission_id': submission.submission_id,
+            'status': submission.status
+        }
+        
+    except SQLAlchemyError as e:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail={
+                'error': 'Database error',
+                'code': 'DB_ERROR',
+                'details': str(e)
+            }
+        )
+
 @router.get("/api/admin/submissions", response_model=List[AdminSubmissionDetail])
 async def list_submissions(
     status: Optional[str] = None,
@@ -176,6 +240,39 @@ async def list_submissions(
             'table_metadata': sub.table_metadata,
             'submitted_at': sub.submitted_at
         } for sub, team in results]
+        
+    except SQLAlchemyError as e:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                'error': 'Database error',
+                'code': 'DB_ERROR',
+                'details': str(e)
+            }
+        )
+
+@router.get("/api/submissions/latest-verified", response_model=Optional[SubmissionResponse])
+async def get_latest_verified_submission(
+    db: Session = Depends(get_db),
+    team_id: int = Depends(get_current_team_id)
+):
+    """Get the latest verified submission for the team"""
+    try:
+        latest = db.query(Submission)\
+            .filter(
+                Submission.team_id == team_id,
+                Submission.status == 'verified'
+            )\
+            .order_by(Submission.submitted_at.desc())\
+            .first()
+            
+        if not latest:
+            return None
+            
+        return {
+            'submission_id': latest.submission_id,
+            'status': latest.status
+        }
         
     except SQLAlchemyError as e:
         raise HTTPException(
