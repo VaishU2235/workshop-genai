@@ -114,14 +114,25 @@ async def update_team_ratings(db: Session, winner_team_id: int, loser_team_id: i
             
         # Calculate new ratings
         new_winner_rating, new_loser_rating = calculate_elo_change(
-            team1_rating=winner_record.elo_rating,
-            team2_rating=loser_record.elo_rating,
+            team1_rating=winner_record.elo_score,
+            team2_rating=loser_record.elo_score,
             result=1.0  # Winner is always team1 in this case
         )
         
-        # Update ratings
-        winner_record.elo_rating = new_winner_rating
-        loser_record.elo_rating = new_loser_rating
+        # Update ratings and win/loss counts
+        winner_record.elo_score = new_winner_rating
+        loser_record.elo_score = new_loser_rating
+        
+        # Update win/loss counts
+        winner_record.wins += 1
+        loser_record.losses += 1
+        
+        # Update last match timestamp
+        current_time = datetime.utcnow()
+        winner_record.last_match_at = current_time
+        loser_record.last_match_at = current_time
+        winner_record.last_updated = current_time
+        loser_record.last_updated = current_time
         
         db.commit()
         
@@ -136,22 +147,22 @@ async def update_team_ratings(db: Session, winner_team_id: int, loser_team_id: i
         logging.error(f"Error updating ratings: {str(e)}")
         return False
 
-def process_ratings_background(db: Session, winner_team_id: int, loser_team_id: int):
+async def process_ratings_background(db: Session, winner_team_id: int, loser_team_id: int):
     """Background task to process ratings with one retry"""
     success = False
     
     # First attempt
-    success = update_team_ratings(db, winner_team_id, loser_team_id)
+    success = await update_team_ratings(db, winner_team_id, loser_team_id)
     
     # Retry once if failed
     if not success:
         logging.info("Retrying rating update...")
-        success = update_team_ratings(db, winner_team_id, loser_team_id)
+        success = await update_team_ratings(db, winner_team_id, loser_team_id)
         
     if not success:
         logging.error("Failed to update ratings after retry")
 
-@router.post("/comparisons/{comparison_id}/submit")
+@router.post("/api/comparisons/{comparison_id}/submit")
 async def submit_comparison(
     comparison_id: int,
     submission: schemas.ComparisonSubmit,
@@ -160,12 +171,18 @@ async def submit_comparison(
     team_id: models.Team = Depends(get_current_team_id)
 ):
     """Submit comparison results"""
+    logging.info(f"Received comparison submission: {submission}")
+    logging.info(f"Comparison ID: {comparison_id}, Team ID: {team_id}")
+    
     comparison = db.query(models.Comparison).get(comparison_id)
     if not comparison:
+        logging.error(f"Comparison not found: {comparison_id}")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Comparison not found"
         )
+    
+    logging.info(f"Found comparison: {comparison.__dict__}")
     
     if comparison.comparison_status != 'pending':
         raise HTTPException(
@@ -182,7 +199,7 @@ async def submit_comparison(
             detail="Invalid submission IDs"
         )
     
-    # Validate team IDs match the submissions
+    # Get submissions and their team IDs
     winner_submission = db.query(models.Submission).get(submission.winner_submission_id)
     loser_submission = db.query(models.Submission).get(submission.loser_submission_id)
     
@@ -192,18 +209,11 @@ async def submit_comparison(
             detail="Invalid submission IDs"
         )
     
-    if (winner_submission.team_id != submission.winner_team_id or 
-        loser_submission.team_id != submission.loser_team_id):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Team IDs don't match the submissions"
-        )
-    
     # Update comparison
     comparison.winner_submission_id = submission.winner_submission_id
     comparison.loser_submission_id = submission.loser_submission_id
-    comparison.winner_team_id = submission.winner_team_id
-    comparison.loser_team_id = submission.loser_team_id
+    comparison.winner_team_id = winner_submission.team_id
+    comparison.loser_team_id = loser_submission.team_id
     comparison.score_difference = submission.score_difference
     comparison.reviewer_id = team_id
     comparison.comparison_status = 'completed'
@@ -216,8 +226,8 @@ async def submit_comparison(
         background_tasks.add_task(
             process_ratings_background,
             db,
-            submission.winner_team_id,
-            submission.loser_team_id
+            winner_submission.team_id,
+            loser_submission.team_id
         )
         
         return {"status": "success"}

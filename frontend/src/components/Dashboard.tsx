@@ -122,13 +122,23 @@ const ReviewSubmissions = () => {
     if (!match) return;
 
     try {
+      console.log('Submitting comparison:', {
+        comparisonId: match.comparison_id,
+        data: {
+          winner_submission_id: winnerId,
+          loser_submission_id: loserId,
+          score_difference: 1
+        }
+      });
+      
       await apiClient.submitComparison(match.comparison_id, {
         winner_submission_id: winnerId,
         loser_submission_id: loserId,
-        winner_team_id: match.submission1.team_id,
-        loser_team_id: match.submission2.team_id,
-        score_difference: 1, // You might want to make this configurable
+        score_difference: 1
       });
+      
+      console.log('Comparison submitted successfully');
+      
       // Fetch next match after voting
       const nextMatch = await apiClient.getNextMatch();
       setMatch(nextMatch);
