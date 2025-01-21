@@ -1,0 +1,33 @@
+[tool.poetry]
+name = "backend"
+version = "0.1.0"
+description = "GenAI Workshop Competition API"
+authors = ["Your Name <your.email@example.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+alembic = "^1.14.0"
+fastapi = "^0.115.6"
+uvicorn = "^0.34.0"
+sqlalchemy = "^2.0.37"
+psycopg2-binary = "^2.9.10"
+python-jose = "^3.3.0"
+passlib = "^1.7.4"
+python-multipart = "^0.0.20"
+python-dotenv = "^1.0.1"
+pydantic = "^2.10.5"
+pydantic-settings = "^2.7.1"
+bcrypt = "^4.2.1"
+APScheduler = "^3.11.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.4"
+httpx = "^0.28.1"
+faker = "^33.3.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+start = "uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload" 

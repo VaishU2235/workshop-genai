@@ -17,23 +17,26 @@ services:
       - JWT_ALGORITHM=${JWT_ALGORITHM}
       - ACCESS_TOKEN_EXPIRE_MINUTES=${ACCESS_TOKEN_EXPIRE_MINUTES}
       - DATABASE_URL=${DATABASE_URL}
+      - PYTHONPATH=/app
     env_file:
       - ./backend/.env
     volumes:
-      - ./backend:/app
+      - ./backend:/app/backend
       - ./backend/.env:/app/.env
     networks:
       - app-network
     command: >
-      sh -c "alembic upgrade head && 
-             uvicorn main:app --host 0.0.0.0 --port 8000 --reload"
+      bash -c "
+        export PYTHONPATH=/app:$PYTHONPATH &&
+        poetry run uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+      "
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     ports:
-      - "5173:5173"
+      - "80:80"
     environment:
       - VITE_API_URL=http://localhost:8000
     env_file:

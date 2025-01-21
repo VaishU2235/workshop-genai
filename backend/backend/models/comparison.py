@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, confloat
 from typing import Optional
 from datetime import datetime
 from enum import Enum
-from .base import Base
+from backend.models.base import Base
 
 class ComparisonStatus(str, Enum):
     PENDING = "pending"

@@ -3,13 +3,13 @@ from sqlalchemy.orm import Session
 from typing import List
 from datetime import timedelta
 
-from .schemas import TeamCreate, TeamLogin, TeamResponse, Token
-from .utils import (
+from backend.models.team import Team
+from backend.database import get_db
+from backend.auth.schemas import TeamCreate, TeamLogin, TeamResponse, Token
+from backend.auth.utils import (
     verify_password, get_password_hash, create_access_token,
     generate_team_id, ACCESS_TOKEN_EXPIRE_MINUTES
 )
-from ..database import get_db
-from ..models import Team
 
 router = APIRouter(prefix="/api")
 

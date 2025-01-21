@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field, Json
 from typing import Optional, Dict, Any
 from datetime import datetime
 from enum import Enum
-from .base import Base
+from backend.models.base import Base
 
 class SubmissionStatus(str, Enum):
     PENDING = "pending"

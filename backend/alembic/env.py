@@ -11,12 +11,12 @@ from alembic import context
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Import your models
-from models import Base  # This will work now
-from models.team import Team
-from models.submission import Submission
-from models.leaderboard import Leaderboard
-from models.comparison import Comparison
-from models.matches import Match
+from backend.models import Base
+from backend.models.team import Team
+from backend.models.submission import Submission
+from backend.models.leaderboard import Leaderboard
+from backend.models.comparison import Comparison
+from backend.models.matches import Match
 
 # this is the Alembic Config object
 config = context.config

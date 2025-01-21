@@ -74,14 +74,14 @@ export function UserAuth({ onAuthSuccess }: UserAuthProps) {
       toast({
         title: 'Success',
         description: 'Logged in successfully',
-      })
+      });
       onAuthSuccess()
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to login',
-      })
+      });
     } finally {
       setIsLoading(false)
     }
@@ -95,15 +95,15 @@ export function UserAuth({ onAuthSuccess }: UserAuthProps) {
       toast({
         title: 'Success',
         description: 'Team registered successfully. Please login.',
-      })
+      });
       // Switch to login tab after successful registration
-      document.querySelector('[data-tab="login"]')?.click()
+      (document.querySelector('[data-tab="login"]') as HTMLElement)?.click()
     } catch (error) {
       toast({
         variant: 'destructive',
         title: 'Error',
         description: error instanceof Error ? error.message : 'Failed to register',
-      })
+      });
     } finally {
       setIsLoading(false)
     }

@@ -1,7 +1,7 @@
 # models/match.py
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, CheckConstraint, UniqueConstraint
 from sqlalchemy.sql import func
-from .base import Base
+from backend.models.base import Base
 
 class Match(Base):
     __tablename__ = 'matches'

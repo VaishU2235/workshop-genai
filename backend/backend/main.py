@@ -1,14 +1,14 @@
 # main.py
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .auth.router import router as auth_router
-from .submissions.router import router as submissions_router
-from .matches.router import router as matches_router
-from .admin.routes import router as admin_router
-from .leaderboard.router import router as leaderboard_router
-from .database import engine, SessionLocal
-from .models.base import Base
-from .utils.leaderboard_sync import sync_teams_to_leaderboard
+from backend.auth.router import router as auth_router
+from backend.submissions.router import router as submissions_router
+from backend.matches.router import router as matches_router
+from backend.admin.routes import router as admin_router
+from backend.leaderboard.router import router as leaderboard_router
+from backend.database import engine, SessionLocal
+from backend.models.base import Base
+from backend.utils.leaderboard_sync import sync_teams_to_leaderboard
 import logging
 
 # Configure logging

@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, BigInteger, Integer, ForeignKey
 from sqlalchemy.sql import func
-from .base import Base
+from backend.models.base import Base
 
 class Leaderboard(Base):
     __tablename__ = 'leaderboard'

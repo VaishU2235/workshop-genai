@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, JSON
 from sqlalchemy.sql import func
-from .base import Base
+from backend.models.base import Base
 
 class Team(Base):
     __tablename__ = 'teams'
